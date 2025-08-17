@@ -130,3 +130,14 @@ Specify the GPU
 ```bash
 export CUDA_VISIBLE_DEVICES=0, 1
 ```
+
+## VPN
+Allocate port
+```bash
+proxy
+```
+
+Open another terminal and run the command
+```bash
+clash
+```
