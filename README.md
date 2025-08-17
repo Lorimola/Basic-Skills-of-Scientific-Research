@@ -50,7 +50,7 @@ git remote add origin https://github.com/username/repo.git
 
 4. Add all files in the folder
 ```bash
-add .
+git add .
 ```
 
 5. Submit code with a comment
