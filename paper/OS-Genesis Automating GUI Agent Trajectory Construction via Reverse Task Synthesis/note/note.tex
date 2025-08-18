@@ -1,0 +1,118 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage{ctex}  % 使用中文支持
+\usepackage{geometry}
+\geometry{a4paper, left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm}
+\usepackage{amsmath, amssymb}
+\usepackage{enumerate}
+
+\title{OS-Genesis Automating GUI Agent Trajectory Construction via Reverse Task Synthesis}
+\author{Yang}
+
+\begin{document}
+\maketitle
+\section{初读思考}
+1. OS-Genesis轨迹生成步骤：
+\begin{itemize}
+    \item GUI代理感知环境并进行逐步交互
+    \item 追溯性探索高质量任务，轨迹探索
+    \item 轨迹奖励模型用于确保轨迹的质量
+\end{itemize}
+
+2. GUI代理自动执行复杂计算任务所必备的能力，可以通过用trajuctory训练来提高：
+\begin{itemize}
+    \item 理解用户意图
+    \item 规划执行任务
+    \item 执行动作
+\end{itemize}
+
+3. GUI的trajectory包括：
+\begin{itemize}
+    \item high level instruction: 类似于用户给出的总指令，定义完成任务的总目标
+    \item low level instruction: 经过拆解之后完成的小任务
+    \item action: 具体的操作比如点击
+    \item state: 分为visual(截屏(screeshot))和textual(用json文件等形式格式化地描述状态信息比如窗口大小，颜色等)
+\end{itemize}
+
+4. 传统用于生成trajectory的方法：
+\begin{itemize}
+    \item human supervision: 需要人工标注high level task和注释，高人力成本且劳动耗费大
+    \item model based synthesis: 模型脚本生成，限制多样性，降低质量
+\end{itemize}
+
+5. OS-Genesis的创新之处：采用反向任务合成技术(reverse synthesis)，首先通过与环境交互探索可以执行什么样的功能，观察到的状态和动作被转化为low level instruction。然后将low level instruction转化为high level instruction从而形成trajectory。然后引入reward model来保证data quality
+
+6. 传统与OS之间的区别总结：
+\begin{itemize}
+    \item task-driven: 传统的方法，首先制定任务(发个邮件)，然后拆解执行，自上向下
+    \item interaction-driven: OS，探索可以执行的操作(界面上有file edit save send)，然后组合操作形成high level instruction，更像是自下向上，探索更多的未知组合
+\end{itemize}
+
+\section{OS-Genesis生成trajectory的具体步骤}
+\subsection{interaction-driven functional discovery}
+首先进行human-free探索在$\epsilon = web, mobile, etc.$的环境中，从中探索交互功能得到操作集$A = \{CLICK, SCROLL, TYPE\}$
+
+这一步骤和人类实际交互步骤类似，只是收集了潜在的操作可能而无需预定义任务
+
+在这个探索过程中triplet(三元组)$<s_{pre}, a, s_{post}>$会被保存，$s_{pre}$表示执行操作前的状态(比如滑动前屏幕截图)，$s_{post}$表示执行操作后的状态
+
+\subsection{reverse task synthesis}
+利用annotation model(注释模型)生成low level instruction，具体的操作是将收集到的triplet作为输入输入到某个annotation model(如GPT)，根据执行操作前后的状态变化，模型会输出一个instruction。比如当下的操作是向下滑动，那么就可能会生成一个任务：向下滑动菜单展示选项，也就是这个操作可能的应用场景。
+
+将low level instruction转化为high level instruction，利用模型进行操作，结合上下文语意转化为更广泛的任务
+
+最后这些high level instruction在环境中被模型(GPT)执行以获得trajectory并保存起来
+
+\subsection{trajectory reward model}
+因为上述提到的反向合成利用了模型，为了避免模型的不可靠性，引入奖励机制。
+
+传统的筛选方法是引入labeler function(标签函数)，直接丢弃掉不可靠的trajectory。但是任何trajectory中都包含最基层的交互探索，直接丢弃很浪费，因此引入轨迹特征的评价标准，利用GPT进行评分$R \in [1, 5]$，评价标准是completeness(完整执行任务)和coherence(避免冗余操作，效率)
+
+设计了一个算法，首先得到轨迹的集合$G$，遍历其中的元素$g_i$，取$g_i$的最后三个状态作为$S_{last}$，取所有的low level instruction作为$L_i$，则$R_i = RM(S_{last}, L_i)$得到相应的分数，然后概率化：$P(g_i) = \frac{R_i}{\sum_{j=1}^{n}R_j}$
+
+首先明确模型输入的含义：因为我们想要更高的completeness和coherence，因此我们需要知道它完成了没有，操作是否简洁高效，那么最后三个状态可以看到任务是否完成，而操作的完全集合可以判断简洁性和冗余性，而reward model当下可以作为一个黑盒，可以很好地进行评判。
+
+接下来是分数的意义，分数越高的轨迹说明更好，应该作为优质数据，而分数越低的轨迹说明很差，比如只是在胡乱操作。在训练GUI Agent的时候可以使用RL，把reward score作为reward策略，概率分布越高的采取训练的次数越多
+
+\section{实验操作}
+\subsection{背景}
+选择Android Control作为评估标准，Android World展示Agent完成任务的可行性，针对的环境有mobile和web，以上两个是针对mobile
+
+\subsection{Baseline Construction And Training}
+Zero-shot(零样本训练，即模型还未经过训练直接考试)：利用CoT等进行指导提示
+
+Task-Driven：传统的生成轨迹方式
+
+Self-instruction(在没有人为总结的前提下模型对自己的行为进行解释总结，形成任务说明)：利用GPT生成
+
+\subsection{Evaluation}
+采用两个指标：SR(success rate指完成任务的成功率)和Type(执行操作种类与预期一致的概率)，GPT的Zero-shot作为对照组，对其余三个模型分别进行上述三种操作的训练得到轨迹，和OS-Genesis得到的轨迹训练结果进行对比
+
+简单来说变量可以分为两类，一类是模型比如Qwen，InternVL，另一类是trajectory数据来源(Task-Driven，Self-Instruction和OS-Genesis)，其中zero-shot作为空白对照，通过用AndroidWorld等工具测试模型执行任务的准确率和冗余性来判断trajectory的质量，进而得出OS-Genesis的优越性
+
+\subsection{Training}
+采用两种Training策略：
+\begin{itemize}
+    \item Planning Training: 输入$s, h_i, c$分别表示多模态输入，high level和历史文本，用$L_1 = -\sum log(p_{\theta}(l|s, h_i, c) * p_{\theta}(a|s, h_i, c))$来提高模型的plan能力
+    \item Action Training: $L_2 = -\sum log p_{\theta}(a|l, s, c)$，强化基于$l$的正确操作
+\end{itemize}
+值得一提的是这两个形式很像熵，因此可以通过最大化这两个指标得到最佳性能
+
+\subsection{Conclusion}
+从结果来看，OS-Genesis可以缩小其余模型与GPT之间的差距，用不同的工具进行评判，虽然OS不一直是最佳，但是表现非常突出，最坏也是第二，平均表现水平第一
+
+\section{补充工作}
+\subsection{保证多样性}
+使用Sentence-BERT算法，计算嵌入指令的平均余弦距离，OS的平均余弦距离最大，因此多样性最高。另一个结论是人为参与能够保证高intruction diversity，但是trajectory diversity很低
+
+\subsection{TRM模型的作用}
+引入轨迹奖励模型取代传统的标签过滤，再加上什么都不干形成三种方式进行结果对比，发现TRM在high level上表现出巨大优势，且low level表现也很不错
+
+\subsection{Scale Trajectories}
+当trajectory变大的时候模型的SR也在逐渐增大
+
+\subsection{与human annotation之间的差距}
+从两个角度比：high level instruction和trajectory，前者OS做得更好，原因是有时候模型会会错意且人类注释可能无法在环境中进行；后者人类更优，但是OS也能做到80\%
+
+\section{总结}
+本篇论文讲述了关于OS-Genesis这种新的产生trajectory的方法，与传统的Task-Driven相比效率更高，人力资源消耗更少且效果也很不错。主要分为探索交互可能，利用模型(GPT)总结low level和high level，引入reward model筛选trajectory，两种training策略进行训练，保证了多样性、准确性。
+\end{document}

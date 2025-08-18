@@ -1,0 +1,67 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage{ctex}
+\usepackage{geometry}
+\geometry{a4paper, left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm}
+\usepackage{amsmath, amssymb}
+\usepackage{enumerate}
+\usepackage{graphicx}
+\usepackage{float}
+
+\title{Implicit Reward as the Bridge A Unified View of SFT and DPO Connections}
+\author{Yang}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+模型训练后为了培养其在某一方面比较突出的技能通常会使用SFT和RFT(DPO)进行学习，但是两者之间的关系是什么尚未研究清楚。本论文认为SFT和DPO都是通过操控implicit reward来获得成长，DPO(preference learning)在之前的研究中就已经阐明了作用。
+
+首先对所有可能的reward function的optimal policy构建policy-reward subspace，SFT和DPO都在这个子空间中分布。关键发现是SFT的KL散度是一个0阶量，即在微分之后对模型的提升没有任何限制且与$\pi$相关。
+
+论文观点梳理：
+\begin{itemize}
+    \item 在数学上证明了SFT同样是操控implicit reward function达成训练效果，和DPO有相似的结构，可以统一辨别SFT和DPO的理论观点
+    \item 在SFT阶段降低学习率来减轻KL项缺失造成的影响。KL项确保策略不会过度偏离基础模型从而促进稳定高效的学习
+    \item 选用了一些其他的以f-divergence function的SFT进行训练，再进行DPO，得到的效果更优
+    \item 将LLM logits和Q-function之间的关系从DPO拓展到SFT
+\end{itemize}
+
+\section{Unified View of SFT and DPO}
+\subsection{Markov Decision Process}
+定义state: $s \in S$，action: $a \in A$，前者表示context，后者表示可能的下一个token，$P(a|s)$表示决策的已知概率，$T(s^\prime|s, a)$已知，由此实现token层面的决策和状态转移。模型具备$r(s, a)$作为决策的reward，$\gamma$是discount factor。
+
+定义一个policy $\pi$的occupancy measure表示为：
+\[
+    \rho(s) = (1-\gamma)\sum_{i=0}^{\infty}\gamma^iP(s_i=s|\pi)
+\]
+其中$P(s_i=s|\pi)$表示基于policy $\pi$，第$i$步的状态为$s$的概率
+
+定义一个policy $\pi$的state-action distribution：
+\[
+    \mu(s, a) = \pi(a|s)\rho(s)
+\]
+
+\subsection{Distribution Matching in Post-Training}
+首先阐述imitation learning中两个重要的概念：expert指高质量策略，模型模仿的标杆，但是expert的策略是黑盒，难以显示表示。比如Alphago先模仿人类棋谱(expert policy)，再强化学习可以变得更好；policy可以抽象为概率分布，就是$\pi(a|s)$的集合体
+
+Post-Training的关键目的就是为了降低$\mu_{Expert}$和$\mu_{\pi}$之间的f-divergence，但是只用entropy可能会破坏base model的natural language priors，因此正则化的标准改为：
+\[
+    min_{\pi} D_f(\mu_{\pi}||\mu_{Expert}) + \beta D_{KL}(\pi||\pi_{ref})
+\]
+
+从两个角度来看：
+\begin{itemize}
+    \item $D_{KL} = -H(\pi) + H(\pi, \pi_{ref})$，后者不会很大
+\end{itemize}
+
+\subsection{Important Theorem}
+上述post-training的目的可以等价为首先基于任意的奖励函数学习最优策略，然后最优化奖励函数：
+\[
+    -min_r[E_{\mu_E}[f^*(-r)] + max_{\pi}E_{\mu_{\pi}}[r] - \beta D_{KL}(\pi||\pi_{ref})]
+\]
+其中$f^*$是基于选择的f-divergence产生的convex conjugate function(凸共轭函数)，$r$是reward function。这个formulation建立了找到合适的policy和选择reward function之间的关系。后半部分max的部分具备closed-form solution，令
+\[
+    J(\pi) = E_{\mu_{\pi}}[r] - \beta D_{KL}(\pi||\pi_{ref})
+\]
+解表示为$\pi^* = arg max_{\pi}J(\pi), \quad J(\pi^*) = V^*(s_0)$
+\end{document}

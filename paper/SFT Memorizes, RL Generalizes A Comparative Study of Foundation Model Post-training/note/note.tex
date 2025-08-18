@@ -1,0 +1,85 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage{ctex}  % 使用中文支持
+\usepackage{geometry}
+\geometry{a4paper, left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm}
+\usepackage{amsmath, amssymb}
+\usepackage{enumerate}
+
+\title{SFT Memorizes, RL Generalizes A Comparative Study of Foundation Model Post-training}
+\author{Yang}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+当下模型在进行post-training的时候会使用SFT与RL，但是它们在对模型泛化提升上各自的分工尚未明确，难点在于将memorization和transferable principles分离，前者倾向于SFT，后者倾向于RL用于泛化
+
+测试项目：基于文本的和基于视觉的，General Points(类似于24点)和V-IRL(类似于现实中导航问题)
+
+结论：SFT倾向于记忆，而RL倾向于泛化，且基于结果的RL奖励学习可以提高模型的视觉识别能力，SFT有助于规范输出格式，是RL前的必要步骤，可以使RL获得更好的性能提升。增加最大步骤数来扩展推理时间的计算可以有更好地泛化能力
+
+SFT：显著提高zero-shot模型处理未见过的任务得能力，且可以提高format
+
+RL：使得模型与人类偏好一致且训练基础模型解决特定任务
+
+Memorization：表现在模型记住训练数据的能力
+
+Generalization：表现在模型输出分布与与训练数据之间的divergence(散度)
+
+LLM在知识密集简单的任务上表现出过拟合，而在复杂推理任务上表现出泛化
+
+distribution：指模型在给定输入的情况下输出的概率分布，比如给定输入一个词，那么它输出的词可能有什么存在概率分布
+
+divergence：衡量两个概率分布之间的不同，常见为KL散度$D(P||Q) = \sum Plog\frac{P}{Q}$
+
+\section{Preliminaries}
+\subsection{RL}
+令$S$表示state space，$A$表示action space，$T$表示每个episode(从任务开始到结束比如执行任务开始到执行任务结束)用到的最大步数。定义reward function $r: S*A \to R$，最后目的是为了选择一个policy $\pi: S \to A$，其中$\pi(a|s)$表示在$s$的状态下选择$a$的概率，最大化$max_{\pi}E_{\pi}\sum_{t=0}^{T}r(s_t, a_t)$
+
+理解：$\pi$是一个policy，决定在给定状态下下一步的action，存在概率分布，对于一个完整的episode会执行许多操作，每一个操作都会进入一个不同的状态，那么对于一个确定的流程的分支，其奖励总和在以概率作为权重之后可以表示为$\sum_{t=0}^{T}\pi(a_t|s_t)r(s_t, a_t)$，然后把所有可能的分支加起来得到的就是在policy为$\pi$的情况下$E\sum_{t=0}^{T}r(s_t, a_t)$，然后以policy作为参数进行得到的reward最大化
+
+\subsection{将RL运用到LLM与VLM}
+令$V$表示离散的token空间，设$m$和$n$分别代表输入和输出的最大token数，则输入文本空间可以定义为$V^m$，输出为$V^n$，令$O$代表所有的RGB图像，对于$S$，LLM和VLM分别是$V^m$和$V^m*O$，$A = V^n$，则定义verifier：$V^n \to R*V^k$，通过评估输出给出一个reward function $r$和文本信息。实例：$VER(v_t^{out}) = (r_t, v_t^{ver})$，同样定义一个policy $\pi_{\theta}: S \to V^n$
+
+verifier的作用是对于这一步的输入进行打分和提示，帮助模型在中间步骤作出更好地修改，相当于中间过程的评价老师。回到上面的RL基础知识，上面需要最大化分数期望，而此处verifier的评分就是需要最大化的指标
+
+在$t=0$的时候，$v^{in}$是system prompt，在之后$v^{in}$是之前输入和输出影响下的input prompt，这个过程称为sequential revision
+
+\section{Expriment}
+\subsection{General Point}
+每个状态是四张卡片，要求使用者四张卡片中的全部仅一次通过某种数学运算凑出给定的和，对于VLM有额外的要求是记住这四张卡片并能辨别，每次尝试可能可以成功，也可能会失败，因此会使用verifier做出判断并影响下一次的输入
+
+泛化能力一方面体现在将"J"等扑克牌识别为"11"，也可以通过改变卡片的颜色等方式，检测arithmetic reasoning ability
+
+\subsection{V-IRL}
+同样也是分为纯文本和文本与视觉输入相结合，主要任务是根据给出的信息导航路线，视觉输入的难点在于识别landmark。鉴别是单纯记忆还是拥有泛化能力的指标是第一个变量统一为绝对方向(东南西北)，而第二个变量统一为相对方向(左右)，视觉泛化体现在对于不同位置地标的识别能力
+
+\subsection{Result}
+指标分成两个部分：ID(in distribution)即见过相同分布的训练数据和OOD(out of distribution)即未见过相同分布的数据，属于不同领域
+
+对于General Point，ID处理"J", "Q", "K"为10，而OOD处理为11，12，13
+
+对于V-IRL，ID处理为绝对方向，而OOD处理为相对方向
+
+变量因素，模型训练的时候要么只SFT，要么在SFT基础上进行RL，模型的类型有LLM和VLM
+
+结果：RL显著提高了各种模型的OOD能力，则说明提高了泛化能力，对于额外的视觉识别功能RL也有一定的提升。而在纯文本的ID中，SFT的表现优于RL，体现SFT集中于memorization
+
+\subsection{OOD中的视觉泛化}
+实验变量：对于General Point，训练时使用黑桃梅花，测试时使用红桃方块。对于V-IRL，训练时使用New York，测试时使用别的环境，规则保持不变，不像上一个部分进行了更改，作控制变量
+
+结论：RL提升了视觉部分的泛化能力
+
+\subsection{为什么RL能够提高visual generalization}
+scale up RL指将原来应用于小规模数据场景的RL推广到大数据规模量级
+
+基于General Point和V-IRL进行试验，结果发现Scaling RL可以提高视觉识别的准确性，而Scaling SFT会降低识别准确性，进一步降低整体性能
+
+\subsection{是否还需要SFT}
+进行试验只使用RL，不进行SFT的预处理会出现poor instruction following的问题若主干模型(backbone model不能够遵循指令)，也就是出现给定一个指令，但是结果却胡乱回答的情况。原因在于模型不具备天然根据要求回答的能力，SFT很好的引导模型面对一类问题该进行什么样的回答，RL只是强化了这方面的能力并可以做到能力泛化应用到更多场景
+
+\subsection{中间提高使用verifier的次数可以有效提高泛化能力}
+
+\subsection{Summary}
+本篇论文主要研究了SFT和RL在模型性能提升的两个方面：Memorization和Generalization上的贡献，最后得出的结论是SFT负责前者，RL负责后者，且RL训练也需要SFT作预处理。实验有两个，分别是General Point和V-IRL，前者是扑克牌点数运算得到指定的和，后者为导航识别。实验对象为LLM和VLM，对于LLM，一切信息都以文本呈现，而对于VLM，信息除了文本还有图像输入，因此还可以考察SFT和RL对于视觉识别能力的影响。进行的实验有两类变量：规则和图像。对于规则，GP是对于"J"，"Q"，"K"扑克牌点数意义的概念，是都认为是10还是分别是10、11、12，V-IRL是绝对方向和相对方向；对于图像，GP是训练用黑色，测试用红色花色，而V-IRL是训练用纽约街景，测试用别的。显然图像变量主要是针对在VLM观察RL的影响，影响结果分为两类ID(侧重于Memorization)，OOD(侧重于Generalization)，因此共8中实验结果对比图。其中着重对RL的奖励策略进行分析，在专业术语中会要求最大化策略带来的步骤奖励和的期望，即$max_{\pi}E_{\pi}\sum_{t=0}^{T}r(s_t, a_t)$，而实际应用到LLM和VLM的时候会考虑引入verifier作为奖励评定的模型，verifier会影响下一步的决定，同时会给当前决定评分并给出建议。在实验中也把verifier的使用次数作为变量观察verifier对训练结果的影响，更多地使用verifier可以帮助模型在中间步骤进行更快的调整，快速走上正轨。没有verifier指导，下一步的输入只会受到历史输入和历史输出的影响，而如果有verifier进行评定，则还会加上verifier的文本输入
+\end{document}

@@ -1,0 +1,94 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage{ctex}  % 使用中文支持
+\usepackage{geometry}
+\geometry{a4paper, left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm}
+\usepackage{amsmath, amssymb}
+\usepackage{enumerate}
+
+\title{Reasoning Models Don’t Always Say What They Think}
+\author{Yang}
+
+\begin{document}
+\maketitle
+\section{初读思考}
+1. CoT(chain of thought)可以通过被监控来了解模型当下的意图和逻辑推理过程，但结果取决于CoT是否能真实地表达模型的思维过程。通过监控CoT可以注意模型在训练过程中出现的出乎意料的行为，但只能发现而不能消除
+
+2. 进行了一项实验：
+\begin{itemize}
+    \item purpose: 测量对比Reasoning模型和非Reasoning模型的CoT faithfulness指标
+    \item method: 给两类模型给予问题对(多项选择题，带提示与不带提示)，对比无提示答案与有提示答案，测量模型在得出有提示答案的时候是否使用或承认了提示
+    \item variable: 模型种类和提示词分类
+    \item conclusion: 推理模型使用提示的场景时间介于1\%到20\%且在较为复杂的问题中CoT表达并不faithful
+\end{itemize}
+
+3. 一些术语的学习：
+\begin{itemize}
+    \item misaligned behaviours with little reasoning: 模型即使不具备推理能力，在简单环境中也出现错误
+    \item sandbagging: 在某些场景并没有完全展现出自己的实力
+    \item reward tampering: 在强化学习中存在奖励机制，模型为使奖励最大化选择不符合人类预期的策略
+    \item single forward pass: 一次单向前递，将输入数据传入神经网络并一路向前传递至输出，不包括反向传播和参数调整
+    \item reinforcement learning(RF): 强化学习
+\end{itemize}
+
+4. 另一试验研究方向：
+\begin{itemize}
+    \item purpose: 除了已训练的模型，还想要研究基于结果的RL是否会影响CoT faithfulness
+    \item hypothesis: 对CoT不敏感的基于结果的RL会使得模型产生较为faithful的CoT
+    \item conclusion: 与假设相反，开始迅速提高了可信度，但是在未饱和之前就逐渐趋于平稳，说明不是提高可信度的有效方法，至少在像对CoT不敏感的环境设置下
+\end{itemize}
+
+5. unfaithful CoT的说明：模型因为问题给出了提示而更改了答案，但是在CoT中并没有verbalize(表达)提示
+
+6. 对CoT监视技术的应用：
+\begin{itemize}
+    \item purpose: detect reward hacks during RL，指强化学习过程中往往会设置奖励，模型为了最大化奖励可能会投机取巧，这一过程可能会在其CoT中反映出来，通过监视CoT就可以知道有没有发生这种情况。比如训练写论文的模型，专业化术语作为评价体系之一，模型为了拿到更高的分数可能会堆砌专业化术语，这时在CoT中可能会有"在回答中添加专业化术语就可以拿到高分"
+    \item question: CoT真的能够可靠的反映模型的reward hack问题吗
+    \item solution: 在已知reward hack的环境下对模型进行微调，测试其CoT是否反映reward hacks
+    \item conclusion: 共设置6个类型的hint，5个不能反映
+\end{itemize}
+
+7. paper中给出的结论总结：
+\begin{itemize}
+    \item 推理模型的CoT运用到了hint进行推理的概率有，但不高
+    \item 基于结果的RL训练不能有效提升CoT的faithfulness
+    \item 在RL过程中CoT也不能有效找到reward hack
+\end{itemize}
+
+8. 测量CoT faithfulness方法：
+\begin{itemize}
+    \item variable: input: $x$, model: $M$, output answer: $a$, CoT: $c$
+    \item difficulties: 要评测就需要将CoT与模型内部真实的推理想法进行对比，后者显然是黑盒，因此在实验中设置的选项是预先设计好的，可以通过回答结果判断模型的内部思考
+    \item expected: ($c_u$, $a_u$) = $M(x_u)$, ($c_h$, $a_h$) = $M(x_h)$
+    \item method: 将回答结果进行过滤，只保留满足上面要求的pair，这时我们可以认为是hint起到了作用。接下来进行赋值，若CoT中显示了hint就赋值1，否则为0，取平均作为分数
+    \item normalize: 排除随机噪声对答案转换的影响，令$p = P(a_h = h| a_u != h)$, $q = P(a_h != h, a_h != a_u | a_u != h)$，标准化后令$\alpha = 1 - \frac{q}{(n-2)p}$，$n-2$代表模型可能等概率地输出$n$种结果，排除hint和原答案只剩$n-2$个
+    \item explanation: $\alpha < 0$表示模型在得到提示后不会比选择非提示答案更频繁地选择提示答案，这意味着可靠性无法被定义，但事实上会更加频繁，标准化并不会显著影响最后的score。且得到的分数很可能是个上界，使用hint但是不说是unfaithful，但是说了也不一定是faithful
+    \item evaluation: 给出提示之后的结果存在三种可能：与原来答案一致，转向一个非提示答案的答案，转向提示答案(expected)，并且给出的提示可能是正确的也可能是错误的，统计概率
+    \item conclusion: 在分析数据之后得出的结论：被测试的模型更多地使用提示并利用提示得到提示答案；推理模型相较于非推理模型具有更高的faithufulness；推理模型的CoT缺乏可靠性，faithfulness score较低，且可能掩盖了不一致性，即隐藏了存在问题的推理；CoT的faithfulness与其简洁性呈负相关，即越不可靠，其CoT越复杂，在面对错误提示或者无提示时，给出错误的理由也很冗长，模型有意掩饰真实的推理过程；CoT面对更加复杂的问题的时候更加unfaithful，在给出提示之后模型的思维过程是先独立推导答案，然后与提示对比，若不一致则遵从提示，CoT监视不擅长复杂问题(对比GPQA(复杂)和MMLU)
+\end{itemize}
+
+9. 提升faithfulness
+\begin{itemize}
+    \item idea: 提升faithfulness需要模型更多的依赖CoT，那么布置推理密集型任务(math, coding)，这样模型会更多地使用CoT，可能可以提高faithfulness
+    \item method: 进行基于结果的RL训练。引入评分机制：若给出的回复既包括CoT也包括答案就得0，否则-1.若给出的答案中显示出了hint就得1，否则为0。使用hint作为reward hack可以通过output观察模型是否进入reward hack，所有给出的hint都指向错误的答案，如果从模型的CoT中看到推理的结果偏向正确答案，但是最后却因为提示的影响得出了错误的答案就认为进入了reward hack
+    \item conclusion: 经过带有reward hack的RL之后发现模型很快就会选择hint给出的错误答案并且在CoT中隐瞒自己是因为reward hack选择的原因，取而代之的是突然的转变和完全没有逻辑的复杂冗长的理由；除此之外如果模型一开始与reward hack相去甚远，那么最后模型往往表现出隐藏reward hack的现象，因此可能无法使用CoT检测强化学习的reward hack
+\end{itemize}
+
+10. 其他知识:
+\begin{itemize}
+    \item 评估CoT的三个指标：plausibility(合理性)指评估推理的事实正确性，faithfulness评估CoT是否正确地反映模型的内部推理，simulatablity评估人类是否能够通过观察CoT来了解模型如何推理各种输入。评估后两者较为困难
+\end{itemize}
+
+11. 局限性：
+\begin{itemize}
+    \item 使用的例子是多项选择题，往往推理聚焦于问题本身，而实际场景中可能没有潜在的环境提示
+    \item CoT的提示都非常容易被利用发现，无法得出CoT是得出非预期行为必需或者出现脱离上下文推理情况下CoT监控的潜力
+\end{itemize}
+
+12. 结论：CoT是一种非常有前景的发现潜在问题的方法，但是当下的可靠性还不足以排除问题
+
+\section{总结}
+本篇论文主要进行了两个实验，对deepseek和claude进行CoT faithfulness评估以及通过RL检测reward hack发现能力。前者通过给出带有提示和不带提示的问题对检测模型的CoT得出结论的转变是否是利用了hint，以及利用hint的过程是否体现在CoT中，以此评估faithfulness。后者通过设置错误答案的hint作为reward hack，通过模型的CoT中关于答案的突然的转变判断模型是否进入reward hack，以及CoT中是否提及自己使用了reward hack来评估CoT对于模型在RL中的reward hack的检测能力。结论就是reasoning model表现出更高的faithfulness，但是仍然不算很高且CoT监视不擅长面对复杂的问题。并且reward hack的检测利用CoT的可靠性较低。
+
+\section{论文行文思路}
+在Abstract中简要介绍了关键结论，在Introduction中介绍了大致实验流程以及不同实验得出的结论，在后面的部分中详细介绍了实验的原理以及实验现象的意义，给出数据展示。最后是对现象的总结，研究的不足之处和一些前景的讨论说明。
+\end{document}
