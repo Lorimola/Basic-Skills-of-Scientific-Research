@@ -9,6 +9,7 @@ This repository focuses on basic skills required for scientific research, includ
   - [Linux Powershell](#linux-powershell)
   - [VPN](#vpn)
   - [Pytorch](#pytorch)
+  - [Paper Reading](#paper-reading)
 
 ---
 
@@ -147,3 +148,6 @@ clash
 
 ## Pytorch
 `pytorch.ipynb` is based on official documentation and some video tutorials. The dataset used can be downloaded from `https://download.pytorch.org/tutorial/hymenoptera_data.zip`
+
+## Paper Reading
+`paper` folder contains papers and notes read during summer practice.
