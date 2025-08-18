@@ -7,6 +7,8 @@ This repository focuses on basic skills required for scientific research, includ
   - [Script Writing](#script-writing)
   - [Github Usage](#github-usage)
   - [Linux Powershell](#linux-powershell)
+  - [VPN](#vpn)
+  - [Pytorch](#pytorch)
 
 ---
 
