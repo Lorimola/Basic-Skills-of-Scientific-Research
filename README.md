@@ -60,7 +60,8 @@ git commit -m "comment"
 
 6. Check and create new branch
 ```bash
-git checkout -b branch
+git checkout -b <name>
+git branch -M <name>
 ```
 
 7. Push code
@@ -141,3 +142,6 @@ Open another terminal and run the command
 ```bash
 clash
 ```
+
+## Pytorch
+`pytorch.ipynb` is based on official documentation and some video tutorials. The dataset used can be downloaded from `https://download.pytorch.org/tutorial/hymenoptera_data.zip`
