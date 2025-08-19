@@ -128,6 +128,16 @@ Install all need libraries in `requirements.txt`
 pip install -r requirements.txt
 ```
 
+Generate `requirements.txt`
+```bash
+pipreqs ./ --encoding=utf-8 --force
+```
+
+Get entire environment
+```bash
+pip freeze > requirements_full.txt
+```
+
 ### GPU Usage
 Monitor the usage of GPU
 ```bash
