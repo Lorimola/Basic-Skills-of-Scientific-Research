@@ -72,6 +72,11 @@ git branch -M <name>
 git push -u origin branch
 ```
 
+8. Update before push
+```bash
+git pull origin main --rebase
+```
+
 ---
 
 ## Linux Powershell
