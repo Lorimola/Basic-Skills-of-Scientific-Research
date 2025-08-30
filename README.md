@@ -125,7 +125,7 @@ conda deactivate
 
 Remove an environment
 ```bash
-conda env remove --name
+conda env remove -n name
 ```
 
 List all environments
