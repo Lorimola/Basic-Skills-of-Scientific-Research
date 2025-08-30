@@ -97,6 +97,16 @@ List all files in current folder
 ls
 ```
 
+Send a folder from one remote server to another
+```bash
+rsync -avzP -e "ssh -p port" /path/to/original/file username@ip:/path/to/new/address
+```
+
+Send a folder from windows local to a linux server
+```cmd
+scp -P port -r /path/to/local/file username@ip:/path/to/new/address
+```
+
 ### Environment Creation
 Create a new environment
 ```bash
