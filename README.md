@@ -123,6 +123,11 @@ Deactivate current environment
 conda deactivate
 ```
 
+Install library from tsinghua
+```bash
+pip install library -i https://pypi.tuna.tsinghua.edu.cn/simple
+```
+
 Remove an environment
 ```bash
 conda env remove -n name
