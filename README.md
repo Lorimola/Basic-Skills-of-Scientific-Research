@@ -107,6 +107,11 @@ Send a folder from windows local to a linux server
 scp -P port -r /path/to/local/file username@ip:/path/to/new/address
 ```
 
+Run a program in the background
+```bash
+nohup bash run.sh > run.log 2>&1 &
+```
+
 ### Environment Creation
 Create a new environment
 ```bash
