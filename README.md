@@ -107,6 +107,10 @@ Send a folder from windows local to a linux server
 scp -P port -r /path/to/local/file username@ip:/path/to/new/address
 ```
 
+Send a folder from a folder to another in the same server
+```bash
+rsync -av --progress /path/to/origin  /path/to/destination
+
 Run a program in the background
 ```bash
 nohup bash run.sh > run.log 2>&1 &
