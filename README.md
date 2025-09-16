@@ -117,6 +117,11 @@ Run a program in the background
 nohup bash run.sh > run.log 2>&1 &
 ```
 
+If you want to kill the progress created by nohup bash run
+```bash
+nvidia-smi
+```
+
 ### Environment Creation
 Create a new environment
 ```bash
